@@ -1,0 +1,18 @@
+version: "3.6"
+
+services:
+  db:
+
+    image: postgres:16
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: naveen
+      POSTGRES_PASSWORD: naveen
+      POSTGRES_DB: crictail-db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
