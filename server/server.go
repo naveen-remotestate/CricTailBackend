@@ -1,6 +1,7 @@
 package server
 
 import (
+	"CricTail_Backend/handler"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,10 @@ func StartServer(serverPort string) (router *gin.Engine) {
 			"serverStatus": "Running",
 		})
 	})
+
+	router.POST("/register", handler.RegisterUser)
+	router.POST("/login", handler.LoginUser)
+
 	return
 
 }
