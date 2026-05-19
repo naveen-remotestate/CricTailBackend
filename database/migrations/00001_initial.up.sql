@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE users (
-                       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                       user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
                        full_name VARCHAR(120) NOT NULL,
 
@@ -21,7 +21,7 @@ CREATE TABLE users (
 CREATE TABLE user_sessions (
                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-                               user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                               user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 
                                archived_at TIMESTAMP,
 
@@ -52,7 +52,7 @@ CREATE TABLE teams (
 
                        name VARCHAR(120) UNIQUE NOT NULL,
 
-                       created_by UUID REFERENCES users(id),
+                       created_by UUID REFERENCES users(user_id),
 
                        created_at TIMESTAMP DEFAULT NOW(),
 
@@ -66,7 +66,7 @@ CREATE TABLE team_players (
 
                               team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
 
-                              player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                              user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 
                               batting_position INT,
 
@@ -76,7 +76,7 @@ CREATE TABLE team_players (
 
                               created_at TIMESTAMP DEFAULT NOW(),
 
-                              UNIQUE(team_id, player_id)
+                              UNIQUE(team_id, user_id)
 );
 
 
@@ -101,7 +101,7 @@ CREATE TABLE matches (
 
                          current_innings_no INT DEFAULT 1,
 
-                         hosted_by UUID REFERENCES users(id),
+                         hosted_by UUID REFERENCES users(user_id),
 
                          stats_processed BOOLEAN DEFAULT FALSE,
 
@@ -163,11 +163,11 @@ CREATE TABLE live_match (
 
                                   innings_id UUID REFERENCES innings(id),
 
-                                  striker_id UUID REFERENCES users(id),
+                                  striker_id UUID REFERENCES users(user_id),
 
-                                  non_striker_id UUID REFERENCES users(id),
+                                  non_striker_id UUID REFERENCES users(user_id),
 
-                                  current_bowler_id UUID REFERENCES users(id),
+                                  current_bowler_id UUID REFERENCES users(user_id),
 
                                   total_runs INT DEFAULT 0,
 
@@ -191,11 +191,11 @@ CREATE TABLE ball_events (
 
                              ball_in_over INT NOT NULL,
 
-                             striker_id UUID NOT NULL REFERENCES users(id),
+                             striker_id UUID NOT NULL REFERENCES users(user_id),
 
-                             non_striker_id UUID NOT NULL REFERENCES users(id),
+                             non_striker_id UUID NOT NULL REFERENCES users(user_id),
 
-                             bowler_id UUID NOT NULL REFERENCES users(id),
+                             bowler_id UUID NOT NULL REFERENCES users(user_id),
 
                              runs_off_bat INT DEFAULT 0,
 
@@ -236,9 +236,9 @@ CREATE TABLE ball_events (
                                          )
                                      ),
 
-                             dismissed_player_id UUID REFERENCES users(id),
+                             dismissed_player_id UUID REFERENCES users(user_id),
 
-                             dismissed_by_fielder_id UUID REFERENCES users(id),
+                             dismissed_by_fielder_id UUID REFERENCES users(user_id),
 
                              bowled_at TIMESTAMP DEFAULT NOW()
 );
@@ -250,7 +250,7 @@ CREATE TABLE batting_scorecards (
 
                                     innings_id UUID NOT NULL REFERENCES innings(id) ON DELETE CASCADE,
 
-                                    player_id UUID NOT NULL REFERENCES users(id),
+                                    user_id UUID NOT NULL REFERENCES users(user_id),
 
                                     batting_position INT,
 
@@ -275,9 +275,9 @@ CREATE TABLE batting_scorecards (
                                                 )
                                             ),
 
-                                    dismissed_by_bowler_id UUID REFERENCES users(id),
+                                    dismissed_by_bowler_id UUID REFERENCES users(user_id),
 
-                                    fielder_id UUID REFERENCES users(id),
+                                    fielder_id UUID REFERENCES users(user_id),
 
                                     is_out BOOLEAN DEFAULT FALSE,
 
@@ -285,7 +285,7 @@ CREATE TABLE batting_scorecards (
 
                                     updated_at TIMESTAMP DEFAULT NOW(),
 
-                                    UNIQUE(innings_id, player_id)
+                                    UNIQUE(innings_id, user_id)
 );
 
 
@@ -295,7 +295,7 @@ CREATE TABLE bowling_scorecards (
 
                                     innings_id UUID NOT NULL REFERENCES innings(id) ON DELETE CASCADE,
 
-                                    player_id UUID NOT NULL REFERENCES users(id),
+                                    user_id UUID NOT NULL REFERENCES users(user_id),
 
                                     legal_balls INT DEFAULT 0,
 
@@ -313,7 +313,7 @@ CREATE TABLE bowling_scorecards (
 
                                     updated_at TIMESTAMP DEFAULT NOW(),
 
-                                    UNIQUE(innings_id, player_id)
+                                    UNIQUE(innings_id, user_id)
 );
 
 
@@ -321,7 +321,7 @@ CREATE TABLE bowling_scorecards (
 CREATE TABLE player_career_stats (
                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-                                     player_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                     user_id UUID UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 
                                      matches_played INT DEFAULT 0,
 
