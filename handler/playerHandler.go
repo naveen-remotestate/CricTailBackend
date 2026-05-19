@@ -135,3 +135,27 @@ func LoginUser(c *gin.Context) {
 		"token":   token,
 	})
 }
+
+func LogoutUser(c *gin.Context) {
+	sessionID := c.GetString("session_id")
+
+	isSessionActive := dbHelper.IsSessionActive(sessionID)
+	if !isSessionActive {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Invalid SessionID",
+		})
+		return
+	}
+
+	err := dbHelper.ArchiveSession(sessionID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid sessionID-unable to logout",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "logout successful",
+	})
+}

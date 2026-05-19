@@ -10,6 +10,23 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func GetUserIDBySessionID(sessionID string) (string, error) {
+	var userID string
+
+	query := `
+		SELECT user_id
+		FROM user_sessions
+		WHERE id = $1 AND archived_at IS NULL
+	`
+
+	err := database.DB.Get(&userID, query, sessionID)
+	if err != nil {
+		return "", err
+	}
+
+	return userID, nil
+}
+
 func GetUserIDByMobileNumber(mobileNumber string) (string, error) {
 	var user_id string
 
