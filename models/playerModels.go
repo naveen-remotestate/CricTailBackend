@@ -16,3 +16,9 @@ type UserInfo struct {
 	Password     string `db:"password_hash"`
 	UserID       string `db:"user_id"`
 }
+
+type ForgotPassword struct {
+	MobileNumber string `json:"mobile_number"`
+	Password     string `json:"password"`
+	Otp          string `json:"otp"`
+}

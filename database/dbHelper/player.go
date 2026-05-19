@@ -133,3 +133,18 @@ func IsSessionActive(sessionID string) bool {
 	}
 	return true
 }
+
+func UpdatePassword(MobileNumber, password string) error {
+	query := `
+		UPDATE users
+		SET password_hash = $1, updated_at=NOW()
+		WHERE mobile_number = $2 AND is_active = TRUE
+	`
+
+	_, err := database.DB.Exec(query, password, MobileNumber)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

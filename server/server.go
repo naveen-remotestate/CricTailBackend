@@ -20,6 +20,7 @@ func StartServer(serverPort string) (router *gin.Engine) {
 
 	router.POST("/register", handler.RegisterUser)
 	router.POST("/login", handler.LoginUser)
+	router.POST("/forgot-password", handler.ForgotPassword)
 
 	auth := router.Group("/")
 	auth.Use(middleware.AuthMiddleware())

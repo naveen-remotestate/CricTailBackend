@@ -47,7 +47,7 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	// Hash password
-	hashed, err := utils.HashPassword(req.Password)
+	hashed, _ := utils.HashPassword(req.Password)
 
 	var userID string
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
@@ -157,5 +157,56 @@ func LogoutUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "logout successful",
+	})
+}
+
+func ForgotPassword(c *gin.Context) {
+	var req models.ForgotPassword
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request- must send these fields in body -mobile_number, otp, password"})
+		return
+	}
+
+	req.Otp = strings.TrimSpace(req.Otp)
+	req.MobileNumber = strings.TrimSpace(req.MobileNumber)
+	req.Password = strings.TrimSpace(req.Password)
+
+	if req.Otp == "" || req.MobileNumber == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "all fields are required-otp, mobile_number, password"})
+		return
+	}
+
+	if req.Otp != "8080" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OTP"})
+		return
+	}
+
+	if len(req.Password) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "password too short"})
+		return
+	}
+
+	// Checks if user exists
+	existingUserID, err := dbHelper.GetUserIDByMobileNumber(req.MobileNumber)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unable to get userID by mobile number"})
+		return
+	}
+	if existingUserID == "" {
+		c.JSON(http.StatusConflict, gin.H{"error": "Mobile Number does not exists"})
+		return
+	}
+
+	// Hash password
+	hashed, _ := utils.HashPassword(req.Password)
+
+	err = dbHelper.UpdatePassword(req.MobileNumber, hashed)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "password updated successfully",
 	})
 }
