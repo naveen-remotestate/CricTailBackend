@@ -1,19 +1,11 @@
 package models
 
-//type PlayerStats struct {
-//	ID          string     `db:"id" json:"id"`
-//	UserID          string     `db:"user_id" json:"user_id"`
-//	MatchesPlayed          string     `db:"matches_played" json:"matches_played"`
-//	InningsBatted string `db:"innings_batted" json:"innings_batted"`
-//	InningsBowled string `db:"innings_bowled" json:"innings_bowled"`
-//	TotalRuns string `db:"total_runs" json:"total_runs"`
-//
-//
-//}
-
 type PlayerStats struct {
 	ID     string `db:"id" json:"id"`
 	UserID string `db:"user_id" json:"user_id"`
+
+	BattingStyle string `db:"batting_style" json:"batting_style"`
+	BowlingStyle string `db:"bowling_style" json:"bowling_style"`
 
 	MatchesPlayed int `db:"matches_played" json:"matches_played"`
 
@@ -41,4 +33,10 @@ type Player struct {
 	UserID       string `db:"user_id" json:"user_id"`
 	FullName     string `db:"full_name" json:"full_name"`
 	MobileNumber string `db:"mobile_number" json:"mobile_number"`
+}
+
+type UpdatePlayer struct {
+	FullName     string `db:"full_name" json:"full_name"`
+	BattingStyle string `db:"batting_style" json:"batting_style"`
+	BowlingStyle string `db:"bowling_style" json:"bowling_style"`
 }

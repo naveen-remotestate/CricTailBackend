@@ -2,6 +2,7 @@ package handler
 
 import (
 	"CricTail_Backend/database/dbHelper"
+	"CricTail_Backend/models"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -36,5 +37,27 @@ func GetAllPlayers(c *gin.Context) {
 }
 
 func UpdatePlayerProfile(c *gin.Context) {
+	userID := c.GetString("user_id")
+	var req models.UpdatePlayer
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request- you may send these fields in body-full_name, batting_style, bowling_style",
+		})
+		return
+	}
 
+	err := dbHelper.UpdatePlayerProfile(
+		userID,
+		req.FullName,
+		req.BattingStyle,
+		req.BowlingStyle,
+	)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "update player failed"}) //"update player failed"
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "player profile updated successfully",
+	})
 }
