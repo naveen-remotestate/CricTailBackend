@@ -311,6 +311,11 @@ CREATE TABLE player_career_stats (
 
                                      user_id UUID UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 
+                                     batting_style VARCHAR(10)
+                                         CHECK (batting_style IN ('LEFT', 'RIGHT')),
+                                     bowling_style VARCHAR(10)
+                                         CHECK (bowling_style IN ('FAST', 'MEDIUM','SPIN','OFF SPIN','LEG SPIN')),
+
                                      matches_played INT DEFAULT 0,
 
                                      innings_batted INT DEFAULT 0,

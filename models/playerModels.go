@@ -36,3 +36,9 @@ type PlayerStats struct {
 
 	UpdatedAt string `db:"updated_at" json:"updated_at"`
 }
+
+type Player struct {
+	UserID       string `db:"user_id" json:"user_id"`
+	FullName     string `db:"full_name" json:"full_name"`
+	MobileNumber string `db:"mobile_number" json:"mobile_number"`
+}

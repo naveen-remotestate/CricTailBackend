@@ -25,10 +25,11 @@ func StartServer(serverPort string) (router *gin.Engine) {
 	auth := router.Group("/")
 	auth.Use(middleware.AuthMiddleware())
 	auth.POST("/logout", handler.LogoutUser) //either POST(mostly) or DELETE
-	//auth.GET("/players",handler.GetAllPlayers)
-	
+	auth.GET("/players", handler.GetAllPlayers)
+
 	profile := auth.Group("/profile")
 	profile.GET("/me", handler.GetPlayerProfile)
+	profile.PUT("/update-me", handler.UpdatePlayerProfile)
 
 	return
 
