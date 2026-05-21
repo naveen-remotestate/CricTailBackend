@@ -210,3 +210,68 @@ func ForgotPassword(c *gin.Context) {
 		"message": "password updated successfully",
 	})
 }
+
+func RegisterGuest(c *gin.Context) {
+	var req models.RegisterGuest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request- must send these fields in body -full_name, mobile_number"})
+		return
+	}
+
+	req.FullName = strings.TrimSpace(req.FullName)
+	req.MobileNumber = strings.TrimSpace(req.MobileNumber)
+
+	if req.FullName == "" || req.MobileNumber == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "all fields required-full_name, mobile_number"})
+		return
+	}
+
+	// Checks if user already exists
+	existingUserID, err := dbHelper.GetUserIDByMobileNumber(req.MobileNumber)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unable to get userID by mobile number"})
+		return
+	}
+	if existingUserID != "" {
+		c.JSON(http.StatusConflict, gin.H{"error": "Mobile Number already exists"})
+		return
+	}
+
+	// Hash password
+	hashed := "crictail"
+
+	var userID string
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+
+		userID, err = dbHelper.CreateUser(tx, req.FullName, req.MobileNumber, hashed)
+		if err != nil {
+			return err
+		}
+
+		err = dbHelper.CreatePlayerCareerStats(tx, userID)
+		if err != nil {
+
+			return err
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		if txErr.Error() == "invalid userid" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": txErr.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "user registered",
+		"user":    userID,
+	})
+}

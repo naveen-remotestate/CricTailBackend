@@ -19,6 +19,7 @@ func StartServer(serverPort string) (router *gin.Engine) {
 	})
 
 	router.POST("/register", handler.RegisterUser)
+	router.POST("/register-guest", handler.RegisterGuest)
 	router.POST("/login", handler.LoginUser)
 	router.POST("/forgot-password", handler.ForgotPassword)
 
@@ -26,6 +27,8 @@ func StartServer(serverPort string) (router *gin.Engine) {
 	auth.Use(middleware.AuthMiddleware())
 	auth.POST("/logout", handler.LogoutUser) //either POST(mostly) or DELETE
 	auth.GET("/players", handler.GetAllPlayers)
+
+	auth.POST("/create-match", handler.CreateMatch)
 
 	profile := auth.Group("/profile")
 	profile.GET("/me", handler.GetPlayerProfile)
