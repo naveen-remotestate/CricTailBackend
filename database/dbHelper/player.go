@@ -18,17 +18,28 @@ func GetPlayerStatsByUserID(userID string) (models.PlayerStats, error) {
     matches_played,
     innings_batted,
     innings_bowled,
+    matches_won,
+    total_points,
     total_runs,
-    highest_score,
     total_balls_faced,
+    highest_run,
+    total_outs,
     total_fours,
     total_sixes,
-    total_wickets,
+    ducks,
+    golden_ducks,
+    fifties,
+    hundreds,
     total_balls_bowled,
     total_runs_conceded,
+    total_wickets_taken,
     total_maidens,
+    wides,
+    no_balls,
+    highest_wicket_taken,
     catches,
     run_outs,
+    stumping,
     updated_at
 FROM player_career_stats
 WHERE user_id = $1;
@@ -42,7 +53,7 @@ WHERE user_id = $1;
 	return PlayerStats, nil
 }
 
-func GetAllPlayers(search string) ([]models.Player, error) {
+func GetPlayers(search string) ([]models.Player, error) {
 	players := make([]models.Player, 0)
 
 	query := `SELECT user_id,mobile_number, full_name FROM users where is_active=TRUE AND ($1 ='' OR full_name ILIKE '%' || $1 || '%' OR mobile_number ILIKE  '%' || $1 || '%'  )`
@@ -68,7 +79,7 @@ func UpdatePlayerProfile(UserID, FullName, BattingStyle, BowlingStyle string) er
 	}
 	count1, err := rows1.RowsAffected()
 	if count1 == 0 {
-		return fmt.Errorf("invalid userID") //because even if toodo id is wrong the query will run succsessfully
+		return fmt.Errorf("invalid userID")
 	}
 
 	query2 := `

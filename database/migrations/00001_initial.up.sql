@@ -34,7 +34,7 @@ CREATE TABLE user_sessions (
 CREATE TABLE teams (
                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-                       name VARCHAR(120) UNIQUE NOT NULL,
+                       name VARCHAR(120) NOT NULL,
 
                        created_by UUID REFERENCES users(user_id),
 
@@ -163,7 +163,8 @@ CREATE TABLE live_match (
 
                                   legal_balls INT DEFAULT 0,
 
-                                  updated_at TIMESTAMP DEFAULT NOW()
+                                  updated_at TIMESTAMP DEFAULT NOW(),
+                                  archived_at TIMESTAMP
 );
 
 
@@ -311,9 +312,10 @@ CREATE TABLE player_career_stats (
 
                                      user_id UUID UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 
-                                     batting_style VARCHAR(10)
+    --general
+                                     batting_style VARCHAR(10) DEFAULT 'LEFT'
                                          CHECK (batting_style IN ('LEFT', 'RIGHT')),
-                                     bowling_style VARCHAR(10)
+                                     bowling_style VARCHAR(10) DEFAULT 'FAST'
                                          CHECK (bowling_style IN ('FAST', 'MEDIUM','SPIN','OFF SPIN','LEG SPIN')),
 
                                      matches_played INT DEFAULT 0,
@@ -322,28 +324,60 @@ CREATE TABLE player_career_stats (
 
                                      innings_bowled INT DEFAULT 0,
 
+                                    matches_won INT DEFAULT 0,
+                                    total_points INT DEFAULT 0,
+
+     --BATTING
                                      total_runs INT DEFAULT 0,
-
-                                     highest_score INT DEFAULT 0,
-
                                      total_balls_faced INT DEFAULT 0,
+
+                                     highest_run INT DEFAULT 0,
+                                    total_outs INT DEFAULT 0,
 
                                      total_fours INT DEFAULT 0,
 
                                      total_sixes INT DEFAULT 0,
+                                    ducks INT DEFAULT 0,
+                                    golden_ducks INT DEFAULT 0,
+                                    fifties INT DEFAULT 0,
+                                    hundreds INT DEFAULT 0,
 
-                                     total_wickets INT DEFAULT 0,
+
+    --BOWLING
 
                                      total_balls_bowled INT DEFAULT 0,
 
                                      total_runs_conceded INT DEFAULT 0,
+                                     total_wickets_taken INT DEFAULT 0,
 
                                      total_maidens INT DEFAULT 0,
+                                    wides INT DEFAULT 0,
+                                    no_balls INT DEFAULT 0,
+                                    highest_wicket_taken INT DEFAULT 0,
 
+    --FIELDING
                                      catches INT DEFAULT 0,
 
                                      run_outs INT DEFAULT 0,
+                                    stumping INT DEFAULT 0,
+
 
                                      updated_at TIMESTAMP DEFAULT NOW()
 );
 
+
+
+CREATE TABLE otp_verifications (
+
+                                   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                                   mobile_number VARCHAR(15) NOT NULL,
+
+                                   otp_code VARCHAR(10) NOT NULL,
+
+                                   expires_at TIMESTAMP,
+
+                                   is_verified BOOLEAN DEFAULT FALSE,
+
+                                   created_at TIMESTAMP DEFAULT NOW()
+);

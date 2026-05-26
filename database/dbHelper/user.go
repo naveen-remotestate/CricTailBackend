@@ -5,6 +5,7 @@ import (
 	"CricTail_Backend/models"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -124,6 +125,21 @@ func ArchiveSession(sessionID string) error {
 	return nil
 }
 
+func ArchiveAllSessions(tx *sqlx.Tx, sessionID string) error {
+	query := `
+		UPDATE user_sessions
+		SET archived_at = NOW()
+		WHERE user_id = $1 AND archived_at IS NULL
+	`
+
+	_, err := tx.Exec(query, sessionID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func IsSessionActive(sessionID string) bool {
 	var archivedAt *time.Time
 	query := `SELECT archived_at FROM user_sessions WHERE id=$1 AND archived_at IS NULL`
@@ -134,17 +150,19 @@ func IsSessionActive(sessionID string) bool {
 	return true
 }
 
-func UpdatePassword(MobileNumber, password string) error {
+func UpdatePassword(tx *sqlx.Tx, MobileNumber, password string) (string, error) {
 	query := `
 		UPDATE users
 		SET password_hash = $1, updated_at=NOW()
 		WHERE mobile_number = $2 AND is_active = TRUE
+		RETURNING user_id
 	`
 
-	_, err := database.DB.Exec(query, password, MobileNumber)
+	var userID string
+	err := tx.Get(&userID, query, password, MobileNumber)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("error: user does not exist or password update failed")
 	}
 
-	return nil
+	return userID, nil
 }

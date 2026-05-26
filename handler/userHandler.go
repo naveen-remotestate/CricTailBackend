@@ -187,22 +187,47 @@ func ForgotPassword(c *gin.Context) {
 	}
 
 	// Checks if user exists
-	existingUserID, err := dbHelper.GetUserIDByMobileNumber(req.MobileNumber)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "unable to get userID by mobile number"})
-		return
-	}
-	if existingUserID == "" {
-		c.JSON(http.StatusConflict, gin.H{"error": "Mobile Number does not exists"})
-		return
-	}
+	//existingUserID, err := dbHelper.GetUserIDByMobileNumber(req.MobileNumber)
+	//if err != nil {
+	//	c.JSON(http.StatusBadRequest, gin.H{"error": "unable to get userID by mobile number"})
+	//	return
+	//}
+	//if existingUserID == "" {
+	//	c.JSON(http.StatusConflict, gin.H{"error": "Mobile Number does not exists"})
+	//	return
+	//}
 
 	// Hash password
 	hashed, _ := utils.HashPassword(req.Password)
 
-	err = dbHelper.UpdatePassword(req.MobileNumber, hashed)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
+	//var userID string
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+
+		userID, err := dbHelper.UpdatePassword(tx, req.MobileNumber, hashed)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return err
+		}
+
+		err = dbHelper.ArchiveAllSessions(tx, userID)
+		if err != nil {
+
+			return err
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		if txErr.Error() == "invalid userid" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": txErr.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
 		return
 	}
 
