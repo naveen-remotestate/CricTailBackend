@@ -30,22 +30,6 @@ CREATE TABLE user_sessions (
 
 
 
--- -- OTP VERIFICATIONS
--- CREATE TABLE otp_verifications (
---                                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---
---                                    mobile_number VARCHAR(15) NOT NULL,
---
---                                    otp_code VARCHAR(10) NOT NULL,
---
---                                    expires_at TIMESTAMP NOT NULL,
---
---                                    is_verified BOOLEAN DEFAULT FALSE,
---
---                                    created_at TIMESTAMP DEFAULT NOW()
--- );
-
-
 -- TEAMS
 CREATE TABLE teams (
                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,6 +86,10 @@ CREATE TABLE matches (
                          current_innings_no INT DEFAULT 1,
 
                          hosted_by UUID REFERENCES users(user_id),
+
+                         scorer_1 UUID REFERENCES users(user_id),
+
+                         scorer_2 UUID REFERENCES users(user_id),
 
                          stats_processed BOOLEAN DEFAULT FALSE,
 
@@ -322,6 +310,11 @@ CREATE TABLE player_career_stats (
                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
                                      user_id UUID UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+
+                                     batting_style VARCHAR(10)
+                                         CHECK (batting_style IN ('LEFT', 'RIGHT')),
+                                     bowling_style VARCHAR(10)
+                                         CHECK (bowling_style IN ('FAST', 'MEDIUM','SPIN','OFF SPIN','LEG SPIN')),
 
                                      matches_played INT DEFAULT 0,
 
