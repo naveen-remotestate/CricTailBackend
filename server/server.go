@@ -19,20 +19,26 @@ func StartServer(serverPort string) (router *gin.Engine) {
 	})
 
 	router.POST("/register", handler.RegisterUser)
-	router.POST("/register-guest", handler.RegisterGuest)
+
 	router.POST("/login", handler.LoginUser)
 	router.POST("/forgot-password", handler.ForgotPassword)
 
+	router.GET("/matches", handler.GetMatches)
+	router.GET("/matches/:matchID", handler.GetMatchByID)
+
 	auth := router.Group("/")
 	auth.Use(middleware.AuthMiddleware())
+	auth.POST("/register-guest", handler.RegisterGuest)
 	auth.POST("/logout", handler.LogoutUser) //either POST(mostly) or DELETE
-	auth.GET("/players", handler.GetAllPlayers)
+	auth.GET("/players", handler.GetPlayers)
 
 	auth.POST("/create-match", handler.CreateMatch)
 
-	profile := auth.Group("/profile")
-	profile.GET("/me", handler.GetPlayerProfile)
-	profile.PUT("/update-me", handler.UpdatePlayerProfile)
+	auth.POST("/ball-event", handler.ScoreLiveMatch)
+
+	profile := auth.Group("/player")
+	profile.GET("/stats", handler.GetPlayerStats)
+	profile.PUT("/update", handler.UpdatePlayerProfile)
 
 	return
 

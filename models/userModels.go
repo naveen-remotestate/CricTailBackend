@@ -10,6 +10,11 @@ type RegisterGuest struct {
 	FullName     string `json:"full_name"`
 	MobileNumber string `json:"mobile_number"`
 }
+
+type RegisterGuestPlayersRequest struct {
+	Players []RegisterGuest `json:"players"`
+}
+
 type LoginUser struct {
 	MobileNumber string `json:"mobile_number"`
 	Password     string `json:"password"`
