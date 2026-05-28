@@ -100,8 +100,8 @@ type AddBallEventRequest struct {
 
 	WicketType string `json:"wicket_type"`
 
-	DismissedPlayerID    string `json:"dismissed_player_id"`
-	DismissedByFielderID string `json:"dismissed_by_fielder_id"`
+	DismissedPlayerID    *string `json:"dismissed_player_id"`
+	DismissedByFielderID *string `json:"dismissed_by_fielder_id"`
 
 	NextBatsmanID string `json:"next_batsman_id"`
 
@@ -157,9 +157,9 @@ type BallEventInsert struct {
 
 	WicketType string `json:"wicket_type"`
 
-	DismissedPlayerID string `json:"dismissed_player_id"`
+	DismissedPlayerID *string `json:"dismissed_player_id"`
 
-	DismissedByFielderID string `json:"dismissed_by_fielder_id"`
+	DismissedByFielderID *string `json:"dismissed_by_fielder_id"`
 }
 
 type InningsUpdate struct {
@@ -206,4 +206,11 @@ type LiveMatchUpdate struct {
 	StrikerID             string `json:"striker_id"`
 	NonStrikerID          string `json:"non_striker_id"`
 	BowlerID              string `json:"bowler_id"`
+}
+
+type StartSecondInningsRequest struct {
+	MatchID      string `json:"match_id"`
+	StrikerID    string `json:"striker_id"`
+	NonStrikerID string `json:"non_striker_id"`
+	BowlerID     string `json:"bowler_id"`
 }

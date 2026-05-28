@@ -346,10 +346,6 @@ func GetMatchByID(c *gin.Context) {
 	})
 }
 
-func ScoreLiveMatch(c *gin.Context) {
-	return
-}
-
 func AddBallEvent(c *gin.Context) {
 
 	var req models.AddBallEventRequest
@@ -365,19 +361,38 @@ func AddBallEvent(c *gin.Context) {
 
 	err = validateBallEventRequest(req)
 	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
 	// fetching current state in db
 	match, err := dbHelper.GetMatchByID(req.MatchID)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
 	err = validateMatchState(match)
 	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
+
+	//getting player count----innings ending logic
+	playerCount, err := dbHelper.GetTeamPlayerCount(match.BattingTeamID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	maxWickets := playerCount - 1
 
 	isLegalDelivery := true
 
@@ -520,7 +535,7 @@ func AddBallEvent(c *gin.Context) {
 
 		battingUpdate.DismissedByBowlerID = event.BowlerID
 
-		battingUpdate.FielderID = event.DismissedByFielderID
+		battingUpdate.FielderID = *event.DismissedByFielderID
 	}
 
 	//---------------Updating Bowling Table
@@ -581,11 +596,9 @@ func AddBallEvent(c *gin.Context) {
 
 	if shouldRotateStrike(event) {
 
-		newStrikerID =
-			event.NonStrikerID
+		newStrikerID = event.NonStrikerID
 
-		newNonStrikerID =
-			event.StrikerID
+		newNonStrikerID = event.StrikerID
 	}
 
 	newLegalBalls := match.LegalBalls
@@ -593,6 +606,42 @@ func AddBallEvent(c *gin.Context) {
 	if event.IsLegalDelivery {
 		newLegalBalls++
 	}
+
+	newTotalRuns := match.CurrentTotalRuns + inningsUpdate.TotalRunsIncrement
+
+	//innings ending logic...
+	newTotalWickets := match.CurrentTotalWickets + inningsUpdate.WicketIncrement
+	isAllOut := newTotalWickets >= maxWickets
+	isOversCompleted := newLegalBalls >= match.Overs*6
+	isSecondInnings := match.CurrentInningNo == 2
+	previousInningsScore := 0
+	if match.PreviousInningsScore != nil {
+		previousInningsScore = *match.PreviousInningsScore
+	}
+	isTargetChased := isSecondInnings && newTotalRuns > previousInningsScore
+
+	isInningsCompleted := isAllOut || isOversCompleted || isTargetChased
+
+	isMatchCompleted := isSecondInnings && isInningsCompleted
+	var winnerTeamID string
+
+	if isMatchCompleted {
+		firstInningsScore := 0
+		if match.PreviousInningsScore != nil {
+			firstInningsScore = *match.PreviousInningsScore
+		}
+		secondInningsScore := newTotalRuns
+		if secondInningsScore > firstInningsScore {
+			winnerTeamID =
+				match.BattingTeamID
+		} else if secondInningsScore < firstInningsScore {
+			winnerTeamID =
+				match.BowlingTeamID
+		}
+	}
+
+	liveMatchUpdate.StrikerID = newStrikerID
+	liveMatchUpdate.NonStrikerID = newNonStrikerID
 
 	/// new bowler selection on over complition
 	isOverCompleted := event.IsLegalDelivery && newLegalBalls%6 == 0
@@ -649,10 +698,6 @@ func AddBallEvent(c *gin.Context) {
 		newStrikerID, newNonStrikerID = newNonStrikerID, newStrikerID
 	}
 
-	liveMatchUpdate.StrikerID = newStrikerID
-
-	liveMatchUpdate.NonStrikerID = newNonStrikerID
-
 	//-----checks that player is not already out
 	if event.IsWicket {
 		if req.NextBatsmanID == "" {
@@ -684,7 +729,7 @@ func AddBallEvent(c *gin.Context) {
 			return
 		}
 
-		if req.NextBatsmanID == req.DismissedPlayerID {
+		if req.DismissedPlayerID != nil && req.NextBatsmanID == *req.DismissedPlayerID {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "dismissed player cannot continue batting",
 			})
@@ -722,26 +767,21 @@ func AddBallEvent(c *gin.Context) {
 		}
 
 		// replace dismissed batsman
-		if req.DismissedPlayerID == newStrikerID {
+		if req.DismissedPlayerID != nil && *req.DismissedPlayerID == newStrikerID {
 			newStrikerID = req.NextBatsmanID
-
-		} else if req.DismissedPlayerID == newNonStrikerID {
+		} else if req.DismissedPlayerID != nil && *req.DismissedPlayerID == newNonStrikerID {
 			newNonStrikerID =
 				req.NextBatsmanID
-
 		} else {
-
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "dismissed player not currently batting",
 			})
 			return
 		}
 
-		liveMatchUpdate.StrikerID =
-			newStrikerID
+		liveMatchUpdate.StrikerID = newStrikerID
 
-		liveMatchUpdate.NonStrikerID =
-			newNonStrikerID
+		liveMatchUpdate.NonStrikerID = newNonStrikerID
 	}
 
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
@@ -772,10 +812,28 @@ func AddBallEvent(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+
+		if isInningsCompleted {
+			err = dbHelper.CompleteInnings(tx, event.InningsID)
+			if err != nil {
+				return err
+			}
+		}
+
+		if isMatchCompleted {
+			err = dbHelper.CompleteMatch(tx, match.MatchID, winnerTeamID)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
 	if txErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": txErr.Error(),
+		})
 		return
 	}
 
@@ -783,6 +841,7 @@ func AddBallEvent(c *gin.Context) {
 		"message": "ball event added successfully",
 	})
 }
+
 func validateBallEventRequest(req models.AddBallEventRequest) error {
 
 	if req.MatchID == "" {
@@ -803,7 +862,7 @@ func validateBallEventRequest(req models.AddBallEventRequest) error {
 			return fmt.Errorf("wicket_type should be empty")
 		}
 
-		if req.DismissedPlayerID != "" {
+		if req.DismissedPlayerID != nil {
 			return fmt.Errorf("dismissed_player_id should be empty")
 		}
 	}
@@ -835,7 +894,7 @@ func validateMatchState(match *models.MatchResponse) error {
 	if err != nil {
 		return err
 	}
-	maxWickets := playerCount
+	maxWickets := playerCount - 1
 
 	if match.CurrentTotalWickets >= maxWickets {
 		return fmt.Errorf("innings already all out")
@@ -931,9 +990,191 @@ func validateMatchState(match *models.MatchResponse) error {
 	return nil
 }
 
-func shouldRotateStrike(
-	event models.BallEventInsert,
-) bool {
-
+func shouldRotateStrike(event models.BallEventInsert) bool {
 	return event.TotalRuns%2 == 1
+}
+
+func StartSecondInnings(c *gin.Context) {
+	var req models.StartSecondInningsRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request body",
+		})
+		return
+	}
+
+	match, err := dbHelper.GetMatchByID(req.MatchID)
+	if err != nil {
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if match == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "match not found",
+		})
+		return
+	}
+	if match.CurrentInningNo != 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "second innings already started",
+		})
+		return
+	}
+	if !match.CurrentInningCompleted {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "first innings not completed",
+		})
+		return
+	}
+
+	if req.StrikerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "striker_id required",
+		})
+		return
+	}
+
+	if req.NonStrikerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "non_striker_id required",
+		})
+		return
+	}
+
+	if req.BowlerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "bowler_id required",
+		})
+		return
+	}
+	if req.StrikerID == req.NonStrikerID {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "striker and non_striker cannot be same",
+		})
+		return
+	}
+
+	//swapping both the teams --- for second innnings
+	battingTeamID := match.BowlingTeamID
+	bowlingTeamID := match.BattingTeamID
+
+	IsStrikerInBattingTeam, err := dbHelper.IsPlayerInTeam(battingTeamID, req.StrikerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if !IsStrikerInBattingTeam {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "striker is not in batting team",
+		})
+		return
+	}
+
+	IsNonStrikerInBattingTeam, err := dbHelper.IsPlayerInTeam(battingTeamID, req.NonStrikerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if !IsNonStrikerInBattingTeam {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "non striker is not in batting team",
+		})
+		return
+	}
+
+	IsBowlerInBowlingTeam, err := dbHelper.IsPlayerInTeam(bowlingTeamID, req.BowlerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if !IsBowlerInBowlingTeam {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "bowler is not in bowling team",
+		})
+		return
+	}
+
+	if req.BowlerID == req.StrikerID {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "bowler cannot be striker",
+		})
+		return
+	}
+
+	if req.BowlerID == req.NonStrikerID {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "bowler cannot be non striker",
+		})
+		return
+	}
+
+	var secondInningsID string
+
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		secondInningsID, err = dbHelper.CreateInning(tx, match.MatchID, "2", battingTeamID, bowlingTeamID)
+		if err != nil {
+			return err
+		}
+
+		battingPlayers, err := dbHelper.GetTeamPlayers(battingTeamID)
+		if err != nil {
+			return err
+		}
+
+		for _, playerID := range battingPlayers {
+
+			err = dbHelper.CreateBattingScorecard(tx, secondInningsID, playerID)
+			if err != nil {
+				return err
+			}
+		}
+
+		bowlingPlayers, err :=
+			dbHelper.GetTeamPlayers(bowlingTeamID)
+		if err != nil {
+			return err
+		}
+
+		for _, playerID := range bowlingPlayers {
+			err = dbHelper.CreateBowlingScorecard(tx, secondInningsID, playerID)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = dbHelper.UpdateMatchCurrentInningsNo(tx, match.MatchID, 2)
+		if err != nil {
+			return err
+		}
+
+		err = dbHelper.ResetLiveMatchForSecondInnings(tx, match.MatchID, secondInningsID, req.StrikerID, req.NonStrikerID, req.BowlerID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if txErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": txErr.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "second innings started",
+
+		"second_innings_id": secondInningsID,
+	})
 }

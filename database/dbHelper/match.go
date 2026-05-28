@@ -661,9 +661,7 @@ func UpdateInningsAfterBall(tx *sqlx.Tx, inningsID string, update models.Innings
 	return err
 }
 
-func GetLastBallSequence(
-	inningsID string,
-) (int, error) {
+func GetLastBallSequence(inningsID string) (int, error) {
 
 	query := `
 		SELECT COALESCE(
@@ -780,7 +778,7 @@ func UpdateLiveMatchAfterBall(
 			non_striker_id = $5,
 			current_bowler_id=$6,
 			updated_at = NOW()
-		WHERE match_id = $6
+		WHERE match_id = $7
 	`
 
 	_, err := tx.Exec(
@@ -812,15 +810,110 @@ func IsPlayerAlreadyOut(inningsID string, userID string) (bool, error) {
 
 	var exists bool
 
-	err := database.DB.Get(
-		&exists,
-		query,
-		inningsID,
-		userID,
-	)
+	err := database.DB.Get(&exists, query, inningsID, userID)
 	if err != nil {
 		return false, err
 	}
 
 	return exists, nil
+}
+
+func CompleteInnings(tx *sqlx.Tx, inningsID string) error {
+
+	query := `
+		UPDATE innings
+		SET
+			is_completed = TRUE,
+			end_time = NOW(),
+			updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := tx.Exec(query, inningsID)
+	return err
+}
+
+func UpdateMatchCurrentInningsNo(tx *sqlx.Tx, matchID string, inningsNo int) error {
+
+	query := `
+		UPDATE matches
+		SET
+			current_innings_no = $1,
+			updated_at = NOW()
+		WHERE id = $2
+	`
+
+	_, err := tx.Exec(query, inningsNo, matchID)
+
+	return err
+}
+
+func ResetLiveMatchForSecondInnings(tx *sqlx.Tx, matchID string, inningsID string, strikerID string, nonStrikerID string, bowlerID string) error {
+
+	query := `
+		UPDATE live_match
+		SET
+
+			innings_id = $1,
+			total_runs = 0,
+			total_wickets = 0,
+			legal_balls = 0,
+			striker_id = $2,
+			non_striker_id = $3,
+			current_bowler_id = $4,
+			updated_at = NOW()
+		WHERE match_id = $5
+	`
+
+	_, err := tx.Exec(
+		query,
+		inningsID,
+		strikerID,
+		nonStrikerID,
+		bowlerID,
+		matchID,
+	)
+
+	return err
+}
+
+func GetTeamPlayers(teamID string) ([]string, error) {
+
+	query := `
+		SELECT user_id
+		FROM team_players
+		WHERE team_id = $1
+	`
+
+	var playerIDs []string
+
+	err := database.DB.Select(
+		&playerIDs,
+		query,
+		teamID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return playerIDs, nil
+}
+
+func CompleteMatch(
+	tx *sqlx.Tx,
+	matchID string,
+	winnerTeamID string,
+) error {
+
+	query := `
+		UPDATE matches
+		SET
+			winner_team_id = NULLIF($1, ''),
+			end_time = NOW(),
+			updated_at = NOW()
+		WHERE id = $2
+	`
+
+	_, err := tx.Exec(query, winnerTeamID, matchID)
+
+	return err
 }
