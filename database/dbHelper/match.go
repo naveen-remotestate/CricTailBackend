@@ -345,7 +345,7 @@ func GetMatchByID(matchID string) (*models.MatchResponse, error) {
 	query := `
 		SELECT
 
-			-- MATCH
+			-- match
 			m.id AS match_id,
 
 			m.toss_winner_team_id,
@@ -361,21 +361,21 @@ func GetMatchByID(matchID string) (*models.MatchResponse, error) {
 			m.start_time,
 			m.end_time,
 
-			-- TEAM A
 			ta.id AS team_a_id,
 			ta.name AS team_a_name,
 
-			-- TEAM B
 			tb.id AS team_b_id,
 			tb.name AS team_b_name,
 
-			-- LIVE SCORE
+			-- Live score
 			COALESCE(lm.total_runs, 0) AS current_total_runs,
 			COALESCE(lm.total_wickets, 0) AS current_total_wickets,
 			COALESCE(lm.legal_balls, 0) AS legal_balls,
 
-			-- CURRENT INNING
 			i.id AS current_inning_id,
+			i.is_completed,
+			i.batting_team_id,
+			i.bowling_team_id,
 
 			-- PREVIOUS INNING
 			COALESCE(pi.total_runs, 0) AS previous_innings_score,
@@ -405,28 +405,25 @@ func GetMatchByID(matchID string) (*models.MatchResponse, error) {
 
 		FROM matches m
 
-		-- TEAMS
 		INNER JOIN teams ta
 			ON ta.id = m.team_a_id
 
 		INNER JOIN teams tb
 			ON tb.id = m.team_b_id
 
-		-- LIVE MATCH
-		LEFT JOIN live_match lm
+		INNER JOIN live_match lm
 			ON lm.match_id = m.id
 
-		-- CURRENT INNING
-		LEFT JOIN innings i
+		-- current innnings
+		INNER JOIN innings i
 			ON i.match_id = m.id
 			AND i.innings_no = m.current_innings_no
 
-		-- PREVIOUS INNING
+		-- preveios innings
 		LEFT JOIN innings pi
 			ON pi.match_id = m.id
 			AND pi.innings_no = m.current_innings_no - 1
 
-		-- STRIKER
 		LEFT JOIN users s
 			ON s.user_id = lm.striker_id
 
@@ -434,7 +431,6 @@ func GetMatchByID(matchID string) (*models.MatchResponse, error) {
 			ON sb.innings_id = i.id
 			AND sb.user_id = s.user_id
 
-		-- NON STRIKER
 		LEFT JOIN users ns
 			ON ns.user_id = lm.non_striker_id
 
@@ -442,7 +438,6 @@ func GetMatchByID(matchID string) (*models.MatchResponse, error) {
 			ON nsb.innings_id = i.id
 			AND nsb.user_id = ns.user_id
 
-		-- BOWLER
 		LEFT JOIN users b
 			ON b.user_id = lm.current_bowler_id
 
@@ -465,4 +460,367 @@ func GetMatchByID(matchID string) (*models.MatchResponse, error) {
 	}
 
 	return &match, nil
+}
+
+func GetTeamPlayerCount(teamID string) (int, error) {
+
+	query := `
+		SELECT COUNT(*)
+		FROM team_players
+		WHERE team_id = $1
+	`
+
+	var count int
+
+	err := database.DB.Get(
+		&count,
+		query,
+		teamID,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func IsPlayerOut(inningsID string, userID string) (bool, error) {
+
+	query := `
+		SELECT is_out
+		FROM batting_scorecards
+		WHERE innings_id = $1
+			AND user_id = $2
+	`
+
+	var isOut bool
+
+	err := database.DB.Get(
+		&isOut,
+		query,
+		inningsID,
+		userID,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return isOut, nil
+}
+
+func IsPlayerInTeam(teamID string, userID string) (bool, error) {
+
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM team_players
+			WHERE team_id = $1
+				AND user_id = $2
+		)
+	`
+
+	var exists bool
+	err := database.DB.Get(
+		&exists,
+		query,
+		teamID,
+		userID,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+func InsertBallEvent(tx *sqlx.Tx, event models.BallEventInsert) error {
+
+	query := `
+		INSERT INTO ball_events (
+
+			innings_id,
+
+			ball_sequence,
+			over_no,
+			ball_in_over,
+
+			striker_id,
+			non_striker_id,
+			bowler_id,
+
+			runs_off_bat,
+			extra_runs,
+			total_runs,
+
+			extra_type,
+
+			is_legal_delivery,
+
+			is_boundary_four,
+			is_boundary_six,
+			is_dot_ball,
+
+			is_wicket,
+
+			wicket_type,
+
+			dismissed_player_id,
+			dismissed_by_fielder_id
+
+		)
+		VALUES (
+
+			$1,
+
+			$2,$3,$4,
+
+			$5,$6,$7,
+
+			$8,$9,$10,
+
+			$11,
+
+			$12,
+
+			$13,$14,$15,
+
+			$16,
+
+			$17,
+
+			$18,$19
+		)
+	`
+
+	_, err := tx.Exec(
+		query,
+
+		event.InningsID,
+
+		event.BallSequence,
+		event.OverNo,
+		event.BallInOver,
+
+		event.StrikerID,
+		event.NonStrikerID,
+		event.BowlerID,
+
+		event.RunsOffBat,
+		event.ExtraRuns,
+		event.TotalRuns,
+
+		event.ExtraType,
+
+		event.IsLegalDelivery,
+
+		event.IsBoundaryFour,
+		event.IsBoundarySix,
+		event.IsDotBall,
+
+		event.IsWicket,
+
+		event.WicketType,
+
+		event.DismissedPlayerID,
+		event.DismissedByFielderID,
+	)
+
+	return err
+}
+func UpdateInningsAfterBall(tx *sqlx.Tx, inningsID string, update models.InningsUpdate) error {
+
+	query := `
+		UPDATE innings
+		SET
+			total_runs = total_runs + $1,
+			total_wickets = total_wickets + $2,
+			legal_balls = legal_balls + $3,
+			extras = extras + $4,
+			wides = wides + $5,
+			no_balls = no_balls + $6,
+			byes = byes + $7,
+			leg_byes = leg_byes + $8,
+			updated_at = NOW()
+		WHERE id = $9
+	`
+
+	_, err := tx.Exec(
+		query,
+
+		update.TotalRunsIncrement,
+		update.WicketIncrement,
+		update.LegalBallIncrement,
+		update.ExtrasIncrement,
+		update.WidesIncrement,
+		update.NoBallsIncrement,
+		update.ByesIncrement,
+		update.LegByesIncrement,
+
+		inningsID,
+	)
+
+	return err
+}
+
+func GetLastBallSequence(
+	inningsID string,
+) (int, error) {
+
+	query := `
+		SELECT COALESCE(
+			MAX(ball_sequence),
+			0
+		)
+		FROM ball_events
+		WHERE innings_id = $1
+	`
+
+	var lastSequence int
+
+	err := database.DB.Get(
+		&lastSequence,
+		query,
+		inningsID,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return lastSequence, nil
+}
+
+func UpdateBattingScorecardAfterBall(
+	tx *sqlx.Tx,
+	inningsID string,
+	batsmanID string,
+	update models.BattingScorecardUpdate,
+) error {
+
+	query := `
+		UPDATE batting_scorecards
+		SET
+
+			runs = runs + $1,
+			balls_faced = balls_faced + $2,
+			fours = fours + $3,
+			sixes = sixes + $4,
+			is_out = $5,
+			dismissal_type = COALESCE($6, dismissal_type),
+			dismissed_by_bowler_id =
+				COALESCE($7, dismissed_by_bowler_id),
+			fielder_id =
+				COALESCE($8, fielder_id),
+			updated_at = NOW()
+		WHERE innings_id = $9
+			AND user_id = $10
+	`
+
+	_, err := tx.Exec(
+		query,
+
+		update.RunsIncrement,
+		update.BallsIncrement,
+		update.FoursIncrement,
+		update.SixesIncrement,
+		update.IsOut,
+		update.DismissalType,
+		update.DismissedByBowlerID,
+		update.FielderID,
+
+		inningsID,
+		batsmanID,
+	)
+
+	return err
+}
+
+func UpdateBowlingScorecardAfterBall(tx *sqlx.Tx, inningsID string, bowlerID string, update models.BowlingScorecardUpdate) error {
+
+	query := `
+		UPDATE bowling_scorecards
+		SET
+			legal_balls = legal_balls + $1,
+			runs_conceded = runs_conceded + $2,
+			wickets = wickets + $3,
+			wides = wides + $4,
+			no_balls = no_balls + $5,
+			updated_at = NOW()
+		WHERE innings_id = $6
+			AND user_id = $7
+	`
+
+	_, err := tx.Exec(
+		query,
+
+		update.LegalBallsIncrement,
+		update.RunsConcededIncrement,
+		update.WicketsIncrement,
+		update.WidesIncrement,
+		update.NoBallsIncrement,
+
+		inningsID,
+		bowlerID,
+	)
+
+	return err
+}
+
+func UpdateLiveMatchAfterBall(
+	tx *sqlx.Tx,
+	matchID string,
+	update models.LiveMatchUpdate,
+) error {
+
+	query := `
+		UPDATE live_match
+		SET
+			total_runs = total_runs + $1,
+			total_wickets =	total_wickets + $2,
+			legal_balls = legal_balls + $3,
+			striker_id = $4,
+			non_striker_id = $5,
+			current_bowler_id=$6,
+			updated_at = NOW()
+		WHERE match_id = $6
+	`
+
+	_, err := tx.Exec(
+		query,
+
+		update.TotalRunsIncrement,
+		update.TotalWicketsIncrement,
+		update.LegalBallsIncrement,
+		update.StrikerID,
+		update.NonStrikerID,
+		update.BowlerID,
+
+		matchID,
+	)
+
+	return err
+}
+
+func IsPlayerAlreadyOut(inningsID string, userID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM batting_scorecards
+			WHERE innings_id = $1
+				AND user_id = $2
+				AND is_out = TRUE
+		)
+	`
+
+	var exists bool
+
+	err := database.DB.Get(
+		&exists,
+		query,
+		inningsID,
+		userID,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }

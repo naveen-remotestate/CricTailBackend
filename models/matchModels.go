@@ -31,7 +31,7 @@ type CreateMatchRequest struct {
 }
 
 type MatchResponse struct {
-	// match
+	// match fields
 	MatchID string `db:"match_id" json:"match_id"`
 
 	TossWinnerTeamID *string `db:"toss_winner_team_id" json:"toss_winner_team_id"`
@@ -47,40 +47,163 @@ type MatchResponse struct {
 	StartTime *time.Time `db:"start_time" json:"start_time"`
 	EndTime   *time.Time `db:"end_time" json:"end_time"`
 
-	// Team A
 	TeamAID   string `db:"team_a_id" json:"team_a_id"`
 	TeamAName string `db:"team_a_name" json:"team_a_name"`
 
-	// Team B
 	TeamBID   string `db:"team_b_id" json:"team_b_id"`
 	TeamBName string `db:"team_b_name" json:"team_b_name"`
 
 	// Live Score
-	CurrentTotalRuns    *int `db:"current_total_runs" json:"current_total_runs"`
-	CurrentTotalWickets *int `db:"current_total_wickets" json:"current_total_wickets"`
-	LegalBalls          *int `db:"legal_balls" json:"legal_balls"`
+	CurrentTotalRuns    int `db:"current_total_runs" json:"current_total_runs"`
+	CurrentTotalWickets int `db:"current_total_wickets" json:"current_total_wickets"`
+	LegalBalls          int `db:"legal_balls" json:"legal_balls"`
 
 	PreviousInningsScore      *int `db:"previous_innings_score" json:"previous_innings_score"`
 	PreviousInningsLegalBalls *int `db:"previous_innings_legal_balls" json:"previous_innings_legal_balls"`
 
-	CurrentInningID *string `db:"current_inning_id" json:"current_inning_id"`
+	CurrentInningID string `db:"current_inning_id" json:"current_inning_id"`
+
+	CurrentInningCompleted bool `db:"is_completed" json:"is_completed"`
+
+	BattingTeamID string `db:"batting_team_id" json:"batting_team_id"`
+	BowlingTeamID string `db:"bowling_team_id" json:"bowling_team_id"`
 
 	// Striker details
 	StrikerID    *string `db:"striker_id" json:"striker_id"`
 	StrikerName  *string `db:"striker_name" json:"striker_name"`
-	StrikerRuns  *int    `db:"striker_runs" json:"striker_runs"`
-	StrikerBalls *int    `db:"striker_balls" json:"striker_balls"`
+	StrikerRuns  int     `db:"striker_runs" json:"striker_runs"`
+	StrikerBalls int     `db:"striker_balls" json:"striker_balls"`
 
 	// nonstriker details
 	NonStrikerID    *string `db:"non_striker_id" json:"non_striker_id"`
 	NonStrikerName  *string `db:"non_striker_name" json:"non_striker_name"`
-	NonStrikerRuns  *int    `db:"non_striker_runs" json:"non_striker_runs"`
-	NonStrikerBalls *int    `db:"non_striker_balls" json:"non_striker_balls"`
+	NonStrikerRuns  int     `db:"non_striker_runs" json:"non_striker_runs"`
+	NonStrikerBalls int     `db:"non_striker_balls" json:"non_striker_balls"`
 
 	// current bowler details
 	BowlerID         *string `db:"bowler_id" json:"bowler_id"`
 	BowlerName       *string `db:"bowler_name" json:"bowler_name"`
-	BowlerRunsGiven  *int    `db:"bowler_runs_given" json:"bowler_runs_given"`
-	BowlerLegalBalls *int    `db:"bowler_legal_balls" json:"bowler_legal_balls"`
-	BowlerWickets    *int    `db:"bowler_wickets" json:"bowler_wickets"`
+	BowlerRunsGiven  int     `db:"bowler_runs_given" json:"bowler_runs_given"`
+	BowlerLegalBalls int     `db:"bowler_legal_balls" json:"bowler_legal_balls"`
+	BowlerWickets    int     `db:"bowler_wickets" json:"bowler_wickets"`
+}
+
+type AddBallEventRequest struct {
+	MatchID string `json:"match_id"`
+
+	RunsOffBat int `json:"runs_off_bat"`
+
+	ExtraRuns int    `json:"extra_runs"`
+	ExtraType string `json:"extra_type"`
+
+	IsWicket bool `json:"is_wicket"`
+
+	WicketType string `json:"wicket_type"`
+
+	DismissedPlayerID    string `json:"dismissed_player_id"`
+	DismissedByFielderID string `json:"dismissed_by_fielder_id"`
+
+	NextBatsmanID string `json:"next_batsman_id"`
+
+	NextBowlerID string `json:"next_bowler_id"`
+}
+
+type MatchState struct {
+	MatchID string `db:"match_id"`
+
+	CurrentInningsID string `db:"current_innings_id"`
+
+	BattingTeamID string `db:"batting_team_id"`
+	BowlingTeamID string `db:"bowling_team_id"`
+
+	StrikerID    string `db:"striker_id"`
+	NonStrikerID string `db:"non_striker_id"`
+
+	BowlerID string `db:"bowler_id"`
+
+	CurrentRuns    int `db:"current_runs"`
+	CurrentWickets int `db:"current_wickets"`
+
+	LegalBalls int `db:"legal_balls"`
+
+	Overs int `db:"overs"`
+}
+
+type BallEventInsert struct {
+	InningsID string `json:"innings_id"`
+
+	BallSequence int `json:"ball_sequence"`
+	OverNo       int `json:"over_no"`
+	BallInOver   int `json:"ball_in_over"`
+
+	StrikerID    string `json:"striker_id"`
+	NonStrikerID string `json:"non_striker_id"`
+
+	BowlerID string `json:"bowler_id"`
+
+	RunsOffBat int `json:"runs_off_bat"`
+	ExtraRuns  int `json:"extra_runs"`
+	TotalRuns  int `json:"total_runs"`
+
+	ExtraType string `json:"extra_type"`
+
+	IsLegalDelivery bool `json:"is_legal_delivery"`
+
+	IsBoundaryFour bool `json:"is_boundary_four"`
+	IsBoundarySix  bool `json:"is_boundary_six"`
+	IsDotBall      bool `json:"is_dot_ball"`
+
+	IsWicket bool `json:"is_wicket"`
+
+	WicketType string `json:"wicket_type"`
+
+	DismissedPlayerID string `json:"dismissed_player_id"`
+
+	DismissedByFielderID string `json:"dismissed_by_fielder_id"`
+}
+
+type InningsUpdate struct {
+	TotalRunsIncrement int `json:"total_runs_increment"`
+
+	WicketIncrement int `json:"wicket_increment"`
+
+	LegalBallIncrement int `json:"legal_ball_increment"`
+
+	ExtrasIncrement int `json:"extras_increment"`
+
+	WidesIncrement int `json:"wides_increment"`
+
+	NoBallsIncrement int `json:"no_balls_increment"`
+
+	ByesIncrement int `json:"byes_increment"`
+
+	LegByesIncrement int `json:"leg_byes_increment"`
+}
+
+type BattingScorecardUpdate struct {
+	RunsIncrement       int    `json:"runs_increment"`
+	BallsIncrement      int    `json:"balls_increment"`
+	FoursIncrement      int    `json:"fours_increment"`
+	SixesIncrement      int    `json:"sixes_increment"`
+	IsOut               bool   `json:"is_out"`
+	DismissalType       string `json:"dismissal_type"`
+	DismissedByBowlerID string `json:"dismissed_by_bowler_id"`
+	FielderID           string `json:"fielder_id"`
+}
+
+type BowlingScorecardUpdate struct {
+	LegalBallsIncrement   int `json:"legal_balls_increment"`
+	RunsConcededIncrement int `json:"runs_conceded_increment"`
+	WicketsIncrement      int `json:"wickets_increment"`
+	WidesIncrement        int `json:"wides_increment"`
+	NoBallsIncrement      int `json:"no_balls_increment"`
+}
+
+type LiveMatchUpdate struct {
+	TotalRunsIncrement    int    `json:"total_runs_increment"`
+	TotalWicketsIncrement int    `json:"total_wickets_increment"`
+	LegalBallsIncrement   int    `json:"legal_balls_increment"`
+	StrikerID             string `json:"striker_id"`
+	NonStrikerID          string `json:"non_striker_id"`
+	BowlerID              string `json:"bowler_id"`
 }
