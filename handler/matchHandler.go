@@ -352,7 +352,6 @@ func AddBallEvent(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid request body",
 		})
@@ -396,17 +395,17 @@ func AddBallEvent(c *gin.Context) {
 
 	isLegalDelivery := true
 
-	if req.ExtraType == "WIDE" || req.ExtraType == "NO_BALL" {
-		isLegalDelivery = false
+	if req.ExtraType != nil {
+		if *req.ExtraType == "WIDE" || *req.ExtraType == "NO_BALL" {
+			isLegalDelivery = false
+		}
 	}
 
 	totalRuns :=
 		req.RunsOffBat +
 			req.ExtraRuns
 
-	if req.ExtraType == "WIDE" ||
-		req.ExtraType == "NO_BALL" {
-
+	if req.ExtraType != nil && (*req.ExtraType == "WIDE" || *req.ExtraType == "NO_BALL") {
 		totalRuns += 1
 	}
 
@@ -463,8 +462,7 @@ func AddBallEvent(c *gin.Context) {
 	}
 
 	// wicket increment
-	if event.IsWicket &&
-		event.WicketType != "RETIRED_HURT" {
+	if event.IsWicket && event.WicketType != nil && *event.WicketType != "RETIRED_HURT" {
 		inningsUpdate.WicketIncrement = 1
 	}
 
@@ -474,11 +472,11 @@ func AddBallEvent(c *gin.Context) {
 	}
 
 	// extras breakdown
-	if event.ExtraType != "" {
+	if event.ExtraType != nil {
 
 		inningsUpdate.ExtrasIncrement = event.ExtraRuns
 
-		switch event.ExtraType {
+		switch *event.ExtraType {
 
 		case "WIDE":
 
@@ -528,14 +526,16 @@ func AddBallEvent(c *gin.Context) {
 
 		battingUpdate.SixesIncrement = 1
 	}
-	if event.IsWicket && event.WicketType != "RETIRED_HURT" {
+	if event.IsWicket && event.WicketType != nil && *event.WicketType != "RETIRED_HURT" {
 		battingUpdate.IsOut = true
 
 		battingUpdate.DismissalType = event.WicketType
 
-		battingUpdate.DismissedByBowlerID = event.BowlerID
+		battingUpdate.DismissedByBowlerID = &event.BowlerID
 
-		battingUpdate.FielderID = *event.DismissedByFielderID
+		if event.DismissedByFielderID != nil {
+			battingUpdate.FielderID = event.DismissedByFielderID
+		}
 	}
 
 	//---------------Updating Bowling Table
@@ -547,28 +547,32 @@ func AddBallEvent(c *gin.Context) {
 		bowlingUpdate.LegalBallsIncrement = 1
 	}
 
-	switch event.ExtraType {
+	bowlingUpdate.RunsConcededIncrement =
+		event.TotalRuns
 
-	case "BYE", "LEG_BYE":
-		bowlingUpdate.RunsConcededIncrement = 0
-	default:
-		bowlingUpdate.RunsConcededIncrement =
-			event.TotalRuns
+	if event.ExtraType != nil {
+
+		switch *event.ExtraType {
+
+		case "BYE", "LEG_BYE":
+			bowlingUpdate.RunsConcededIncrement = 0
+		}
 	}
 
-	if event.ExtraType == "WIDE" {
+	if event.ExtraType != nil {
 
-		bowlingUpdate.WidesIncrement = 1
+		if *event.ExtraType == "WIDE" {
+			bowlingUpdate.WidesIncrement = 1
+		}
+
+		if *event.ExtraType == "NO_BALL" {
+			bowlingUpdate.NoBallsIncrement = 1
+		}
 	}
 
-	if event.ExtraType == "NO_BALL" {
+	if event.IsWicket && event.WicketType != nil {
 
-		bowlingUpdate.NoBallsIncrement = 1
-	}
-
-	if event.IsWicket {
-
-		switch event.WicketType {
+		switch *event.WicketType {
 
 		case "BOWLED",
 			"CAUGHT",
@@ -594,7 +598,7 @@ func AddBallEvent(c *gin.Context) {
 	newStrikerID := event.StrikerID
 	newNonStrikerID := event.NonStrikerID
 
-	if shouldRotateStrike(event) {
+	if IsStrikeRotating(event) {
 
 		newStrikerID = event.NonStrikerID
 
@@ -706,6 +710,24 @@ func AddBallEvent(c *gin.Context) {
 			})
 			return
 		}
+
+		if req.IsWicket {
+
+			if req.WicketType == nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "wicket_type  required",
+				})
+				return
+			}
+
+			if req.DismissedPlayerID == nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "dismissed_player_id required",
+				})
+				return
+			}
+		}
+
 		// next striker cannot be current striker
 		if req.NextBatsmanID == newStrikerID {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -770,8 +792,7 @@ func AddBallEvent(c *gin.Context) {
 		if req.DismissedPlayerID != nil && *req.DismissedPlayerID == newStrikerID {
 			newStrikerID = req.NextBatsmanID
 		} else if req.DismissedPlayerID != nil && *req.DismissedPlayerID == newNonStrikerID {
-			newNonStrikerID =
-				req.NextBatsmanID
+			newNonStrikerID = req.NextBatsmanID
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "dismissed player not currently batting",
@@ -783,36 +804,43 @@ func AddBallEvent(c *gin.Context) {
 
 		liveMatchUpdate.NonStrikerID = newNonStrikerID
 	}
+	//fmt.Printf("ExtraType: %#v\n", event.ExtraType)
 
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		err = dbHelper.InsertBallEvent(
-			tx,
-			event,
-		)
+		fmt.Println("1")
+		err = dbHelper.InsertBallEvent(tx, event)
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("2")
 		err = dbHelper.UpdateInningsAfterBall(tx, event.InningsID, inningsUpdate)
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("3")
+		fmt.Printf("battingUpdate = %+v\n", battingUpdate)
+		fmt.Printf("event = %+v\n", event)
 		err = dbHelper.UpdateBattingScorecardAfterBall(tx, event.InningsID, event.StrikerID, battingUpdate)
 		if err != nil {
 			return err
 		}
+
+		fmt.Println("4")
 
 		err = dbHelper.UpdateBowlingScorecardAfterBall(tx, event.InningsID, event.BowlerID, bowlingUpdate)
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("5")
 		err = dbHelper.UpdateLiveMatchAfterBall(tx, match.MatchID, liveMatchUpdate)
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("6")
 		if isInningsCompleted {
 			err = dbHelper.CompleteInnings(tx, event.InningsID)
 			if err != nil {
@@ -820,6 +848,7 @@ func AddBallEvent(c *gin.Context) {
 			}
 		}
 
+		fmt.Println("7")
 		if isMatchCompleted {
 			err = dbHelper.CompleteMatch(tx, match.MatchID, winnerTeamID)
 			if err != nil {
@@ -858,7 +887,7 @@ func validateBallEventRequest(req models.AddBallEventRequest) error {
 	//for the times when is_wicket is false but someone sends wicket type in request
 	if !req.IsWicket {
 
-		if req.WicketType != "" {
+		if req.WicketType != nil {
 			return fmt.Errorf("wicket_type should be empty")
 		}
 
@@ -990,7 +1019,7 @@ func validateMatchState(match *models.MatchResponse) error {
 	return nil
 }
 
-func shouldRotateStrike(event models.BallEventInsert) bool {
+func IsStrikeRotating(event models.BallEventInsert) bool {
 	return event.TotalRuns%2 == 1
 }
 

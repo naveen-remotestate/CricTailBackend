@@ -194,6 +194,8 @@ CREATE TABLE ball_events (
 
                              extra_type VARCHAR(20)
                                  CHECK (
+                                     extra_type IS NULL
+                                 OR
                                      extra_type IN (
                                                     'WIDE',
                                                     'NO_BALL',
@@ -214,6 +216,8 @@ CREATE TABLE ball_events (
 
                              wicket_type VARCHAR(30)
                                  CHECK (
+                                     wicket_type IS NULL
+                                 OR
                                      wicket_type IN (
                                                      'BOWLED',
                                                      'CAUGHT',
@@ -253,6 +257,8 @@ CREATE TABLE batting_scorecards (
 
                                     dismissal_type VARCHAR(30)
                                         CHECK (
+                                            dismissal_type IS NULL
+                                        OR
                                             dismissal_type IN (
                                                                'BOWLED',
                                                                'CAUGHT',

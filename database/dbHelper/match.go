@@ -686,12 +686,7 @@ func GetLastBallSequence(inningsID string) (int, error) {
 	return lastSequence, nil
 }
 
-func UpdateBattingScorecardAfterBall(
-	tx *sqlx.Tx,
-	inningsID string,
-	batsmanID string,
-	update models.BattingScorecardUpdate,
-) error {
+func UpdateBattingScorecardAfterBall(tx *sqlx.Tx, inningsID string, batsmanID string, update models.BattingScorecardUpdate) error {
 
 	query := `
 		UPDATE batting_scorecards
@@ -703,10 +698,8 @@ func UpdateBattingScorecardAfterBall(
 			sixes = sixes + $4,
 			is_out = $5,
 			dismissal_type = COALESCE($6, dismissal_type),
-			dismissed_by_bowler_id =
-				COALESCE($7, dismissed_by_bowler_id),
-			fielder_id =
-				COALESCE($8, fielder_id),
+			dismissed_by_bowler_id =COALESCE($7, dismissed_by_bowler_id),
+			fielder_id =COALESCE($8, fielder_id),
 			updated_at = NOW()
 		WHERE innings_id = $9
 			AND user_id = $10

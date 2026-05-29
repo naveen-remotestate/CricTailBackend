@@ -5,12 +5,22 @@ import (
 	"CricTail_Backend/middleware"
 	"fmt"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func StartServer(serverPort string) (router *gin.Engine) {
 	fmt.Println("Starting Server")
 	router = gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000",
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true,
+	}))
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -33,7 +43,7 @@ func StartServer(serverPort string) (router *gin.Engine) {
 	auth.GET("/players", handler.GetPlayers)
 
 	auth.POST("/create-match", handler.CreateMatch)
-	
+
 	auth.POST("/ball-event", handler.AddBallEvent)
 	auth.POST("/start-second-innings", handler.StartSecondInnings)
 

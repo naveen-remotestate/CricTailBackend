@@ -93,12 +93,12 @@ type AddBallEventRequest struct {
 
 	RunsOffBat int `json:"runs_off_bat"`
 
-	ExtraRuns int    `json:"extra_runs"`
-	ExtraType string `json:"extra_type"`
+	ExtraRuns int     `json:"extra_runs"`
+	ExtraType *string `json:"extra_type"`
 
 	IsWicket bool `json:"is_wicket"`
 
-	WicketType string `json:"wicket_type"`
+	WicketType *string `json:"wicket_type"`
 
 	DismissedPlayerID    *string `json:"dismissed_player_id"`
 	DismissedByFielderID *string `json:"dismissed_by_fielder_id"`
@@ -145,7 +145,7 @@ type BallEventInsert struct {
 	ExtraRuns  int `json:"extra_runs"`
 	TotalRuns  int `json:"total_runs"`
 
-	ExtraType string `json:"extra_type"`
+	ExtraType *string `json:"extra_type"`
 
 	IsLegalDelivery bool `json:"is_legal_delivery"`
 
@@ -155,7 +155,7 @@ type BallEventInsert struct {
 
 	IsWicket bool `json:"is_wicket"`
 
-	WicketType string `json:"wicket_type"`
+	WicketType *string `json:"wicket_type"`
 
 	DismissedPlayerID *string `json:"dismissed_player_id"`
 
@@ -181,14 +181,14 @@ type InningsUpdate struct {
 }
 
 type BattingScorecardUpdate struct {
-	RunsIncrement       int    `json:"runs_increment"`
-	BallsIncrement      int    `json:"balls_increment"`
-	FoursIncrement      int    `json:"fours_increment"`
-	SixesIncrement      int    `json:"sixes_increment"`
-	IsOut               bool   `json:"is_out"`
-	DismissalType       string `json:"dismissal_type"`
-	DismissedByBowlerID string `json:"dismissed_by_bowler_id"`
-	FielderID           string `json:"fielder_id"`
+	RunsIncrement       int     `json:"runs_increment"`
+	BallsIncrement      int     `json:"balls_increment"`
+	FoursIncrement      int     `json:"fours_increment"`
+	SixesIncrement      int     `json:"sixes_increment"`
+	IsOut               bool    `json:"is_out"`
+	DismissalType       *string `json:"dismissal_type"`
+	DismissedByBowlerID *string `json:"dismissed_by_bowler_id"`
+	FielderID           *string `json:"fielder_id"`
 }
 
 type BowlingScorecardUpdate struct {
