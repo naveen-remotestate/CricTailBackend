@@ -1207,3 +1207,64 @@ func StartSecondInnings(c *gin.Context) {
 		"second_innings_id": secondInningsID,
 	})
 }
+
+func GetScorecard(c *gin.Context) {
+
+	matchID := c.Param("matchID")
+	match, err := dbHelper.GetMatchByID(matchID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if match == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "match not found",
+		})
+		return
+	}
+
+	inningsList, err := dbHelper.GetMatchInnings(matchID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	response := models.MatchScorecardResponse{
+		MatchID: matchID,
+	}
+
+	for i := range inningsList {
+		batting, err := dbHelper.GetBattingScorecard(inningsList[i].InningsID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		bowling, err := dbHelper.GetBowlingScorecard(inningsList[i].InningsID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		inningsList[i].Batting = batting
+		inningsList[i].Bowling = bowling
+		if inningsList[i].InningsNo == 1 {
+			response.FirstInnings = &inningsList[i]
+		} else if inningsList[i].InningsNo == 2 {
+			response.SecondInnings = &inningsList[i]
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"scorecard": response,
+	})
+}

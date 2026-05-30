@@ -16,8 +16,9 @@ func StartServer(serverPort string) (router *gin.Engine) {
 	router.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"http://localhost:3000",
-		},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			"http://localhost:5173",
+			"http://192.168.1.100:5173",
+		}, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
 	}))
@@ -35,6 +36,8 @@ func StartServer(serverPort string) (router *gin.Engine) {
 
 	router.GET("/matches", handler.GetMatches)
 	router.GET("/matches/:matchID", handler.GetMatchByID)
+
+	router.GET("/matches/:matchID/scorecard", handler.GetScorecard)
 
 	auth := router.Group("/")
 	auth.Use(middleware.AuthMiddleware())

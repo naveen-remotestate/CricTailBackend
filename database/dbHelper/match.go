@@ -910,3 +910,82 @@ func CompleteMatch(
 
 	return err
 }
+
+func GetBattingScorecard(inningsID string) ([]models.BattingScorecardResponse, error) {
+
+	query := `
+		SELECT
+			u.user_id,
+			u.full_name,
+			bs.runs,
+			bs.balls_faced,
+			bs.fours,
+			bs.sixes,
+			bs.is_out,
+			bs.dismissal_type
+		FROM batting_scorecards bs
+		INNER JOIN users u
+			ON u.user_id = bs.user_id
+		WHERE bs.innings_id = $1
+		ORDER BY bs.created_at
+	`
+
+	var batting []models.BattingScorecardResponse
+
+	err := database.DB.Select(&batting, query, inningsID)
+	if err != nil {
+		return nil, err
+	}
+	return batting, nil
+}
+
+func GetBowlingScorecard(inningsID string) ([]models.BowlingScorecardResponse, error) {
+
+	query := `
+		SELECT
+			u.user_id,
+			u.full_name,
+			bs.legal_balls,
+			bs.runs_conceded,
+			bs.wickets,
+			bs.wides,
+			bs.no_balls
+		FROM bowling_scorecards bs
+		INNER JOIN users u
+			ON u.user_id = bs.user_id
+		WHERE bs.innings_id = $1
+		ORDER BY bs.created_at
+	`
+
+	var bowling []models.BowlingScorecardResponse
+	err := database.DB.Select(&bowling, query, inningsID)
+	if err != nil {
+		return nil, err
+	}
+	return bowling, nil
+}
+
+func GetMatchInnings(matchID string) ([]models.InningsScorecard, error) {
+
+	query := `
+		SELECT
+			id,
+			innings_no,
+			batting_team_id,
+			bowling_team_id,
+			total_runs,
+			total_wickets,
+			legal_balls,
+			extras
+		FROM innings
+		WHERE match_id = $1
+		ORDER BY innings_no
+	`
+
+	var innings []models.InningsScorecard
+	err := database.DB.Select(&innings, query, matchID)
+	if err != nil {
+		return nil, err
+	}
+	return innings, nil
+}

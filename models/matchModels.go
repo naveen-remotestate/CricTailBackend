@@ -214,3 +214,43 @@ type StartSecondInningsRequest struct {
 	NonStrikerID string `json:"non_striker_id"`
 	BowlerID     string `json:"bowler_id"`
 }
+
+type BowlingScorecardResponse struct {
+	UserID       string `db:"user_id" json:"user_id"`
+	PlayerName   string `db:"full_name" json:"player_name"`
+	LegalBalls   int    `db:"legal_balls" json:"legal_balls"`
+	RunsConceded int    `db:"runs_conceded" json:"runs_conceded"`
+	Wickets      int    `db:"wickets" json:"wickets"`
+	Wides        int    `db:"wides" json:"wides"`
+	NoBalls      int    `db:"no_balls" json:"no_balls"`
+}
+
+type BattingScorecardResponse struct {
+	UserID        string  `db:"user_id" json:"user_id"`
+	PlayerName    string  `db:"full_name" json:"player_name"`
+	Runs          int     `db:"runs" json:"runs"`
+	BallsFaced    int     `db:"balls_faced" json:"balls_faced"`
+	Fours         int     `db:"fours" json:"fours"`
+	Sixes         int     `db:"sixes" json:"sixes"`
+	IsOut         bool    `db:"is_out" json:"is_out"`
+	DismissalType *string `db:"dismissal_type" json:"dismissal_type"`
+}
+
+type InningsScorecard struct {
+	InningsID     string                     `db:"id" json:"innings_id"`
+	InningsNo     int                        `db:"innings_no" json:"innings_no"`
+	BattingTeamID string                     `db:"batting_team_id" json:"batting_team_id"`
+	BowlingTeamID string                     `db:"bowling_team_id" json:"bowling_team_id"`
+	TotalRuns     int                        `db:"total_runs" json:"total_runs"`
+	TotalWickets  int                        `db:"total_wickets" json:"total_wickets"`
+	LegalBalls    int                        `db:"legal_balls" json:"legal_balls"`
+	Extras        int                        `db:"extras" json:"extras"`
+	Batting       []BattingScorecardResponse `json:"batting,omitempty"`
+	Bowling       []BowlingScorecardResponse `json:"bowling,omitempty"`
+}
+
+type MatchScorecardResponse struct {
+	MatchID       string            `json:"match_id"`
+	FirstInnings  *InningsScorecard `json:"first_innings,omitempty"`
+	SecondInnings *InningsScorecard `json:"second_innings,omitempty"`
+}
